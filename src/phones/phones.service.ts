@@ -1,26 +1,61 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreatePhoneDto } from './dto/create-phone.dto';
 import { UpdatePhoneDto } from './dto/update-phone.dto';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Phone } from './entities/phone.entity';
+import { Repository } from 'typeorm';
+import { NotFoundError } from 'rxjs';
 
 @Injectable()
 export class PhonesService {
-  create(createPhoneDto: CreatePhoneDto) {
-    return 'This action adds a new phone';
+  constructor(
+    @InjectRepository(Phone)
+    private readonly phoneRepository: Repository<Phone>
+  ) { }
+
+
+
+  async create(createPhoneDto: CreatePhoneDto){
+      const newPhone = await this.phoneRepository.create(createPhoneDto)
+      await this.phoneRepository.save(newPhone)
+      return newPhone
+    }
+
+  async update (
+    id: number,
+    updatePhone: UpdatePhoneDto
+  ){
+
+    const phone = await this.phoneRepository.preload({
+      id,
+      ...updatePhone})
+
+    if (!phone) {
+      throw new NotFoundException('Telefone não encontrado')
+    }
+
+    return this.phoneRepository.save(phone)
   }
 
-  findAll() {
-    return `This action returns all phones`;
+  async findData (id: number){
+    const phone = await this.phoneRepository.findOne({
+      where: {id}
+    })
+
+    if (!phone){
+      throw new NotFoundException ('Telefone não encontrado')
+    }
+    return phone;
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} phone`;
-  }
+  async delete (id: number) {
+    
+    const phone = await this.findData(id)
 
-  update(id: number, updatePhoneDto: UpdatePhoneDto) {
-    return `This action updates a #${id} phone`;
+    if (!phone) 
+      throw new NotFoundException('Telefone não encontrado')
+    return this.phoneRepository.remove(phone)
   }
-
-  remove(id: number) {
-    return `This action removes a #${id} phone`;
-  }
+  
 }
+
